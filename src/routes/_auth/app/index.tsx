@@ -11,6 +11,7 @@ import {
   $fetchYoutubeComments,
   $getYoutubeChannel,
   $postYoutubeReply,
+  $regenerateYoutubeCommentDraft,
 } from "@/lib/youtube/functions";
 import type { YoutubeCommentWithReplies } from "@/lib/youtube/server";
 
@@ -24,6 +25,7 @@ function AppIndex() {
   const initialChannel = Route.useLoaderData();
   const fetchYoutubeComments = useServerFn($fetchYoutubeComments);
   const postYoutubeReply = useServerFn($postYoutubeReply);
+  const regenerateYoutubeCommentDraft = useServerFn($regenerateYoutubeCommentDraft);
   const [channel, setChannel] = useState(initialChannel);
   const [comments, setComments] = useState<YoutubeCommentWithReplies[]>([]);
   const [limitInput, setLimitInput] = useState("10");
@@ -52,6 +54,46 @@ function AppIndex() {
     },
   });
 
+  const regenerateReplyMutation = useMutation({
+    mutationFn: async (input: {
+      commentId: string;
+      threadId: string;
+      channelId: string;
+      videoId: string | null;
+      commentText: string;
+      customComment: string;
+      correctionInstruction: string;
+    }) => {
+      return regenerateYoutubeCommentDraft({
+        data: {
+          ...input,
+          customComment: normalizeOptionalTextInput(input.customComment),
+          correctionInstruction: normalizeOptionalTextInput(input.correctionInstruction),
+        },
+      });
+    },
+    onSuccess: (draft, variables) => {
+      setComments((current) =>
+        current.map((comment) =>
+          comment.commentId === variables.commentId
+            ? {
+                ...comment,
+                customComment: draft.customComment ?? "",
+                correctionInstruction: draft.correctionInstruction ?? "",
+                replyOptions: [draft.optionA, draft.optionB],
+                postedReply: draft.replyText ?? null,
+                isPosted: Boolean(draft.replyText),
+              }
+            : comment,
+        ),
+      );
+      toast.success("AI replies updated for this comment.");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update AI replies.");
+    },
+  });
+
   function syncLimitInput() {
     setLimitInput(String(normalizeNumberInput(limitInput, 10, 1, 20)));
   }
@@ -68,6 +110,7 @@ function AppIndex() {
       videoId: string | null;
       commentText: string;
       replyText: string;
+      customComment?: string;
     }) => {
       return postYoutubeReply({
         data: input,
@@ -79,7 +122,7 @@ function AppIndex() {
           comment.commentId === variables.commentId
             ? {
                 ...comment,
-                alreadyReplied: true,
+                isPosted: true,
                 postedReply: variables.replyText,
                 replyOptions: [variables.replyText, variables.replyText],
               }
@@ -165,6 +208,9 @@ function AppIndex() {
           const isPostingThisComment =
             postReplyMutation.isPending &&
             postReplyMutation.variables?.commentId === comment.commentId;
+          const isRegeneratingThisComment =
+            regenerateReplyMutation.isPending &&
+            regenerateReplyMutation.variables?.commentId === comment.commentId;
 
           return (
             <article key={comment.commentId} className="rounded-3xl border bg-background p-5">
@@ -172,9 +218,9 @@ function AppIndex() {
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{comment.author}</span>
-                    {comment.alreadyReplied ? (
+                    {comment.isPosted ? (
                       <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
-                        already replied
+                        posted
                       </span>
                     ) : null}
                   </div>
@@ -185,13 +231,36 @@ function AppIndex() {
                 </time>
               </div>
 
-              <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                {comment.replyOptions.map((reply, index) => (
-                  <div key={`${comment.commentId}-${index}`} className="rounded-2xl border p-4">
-                    <p className="text-sm leading-6 whitespace-pre-wrap">{reply}</p>
+              {!comment.isPosted ? (
+                <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                  <div className="rounded-2xl border p-4 lg:col-span-2">
+                    <label
+                      className="space-y-1 text-sm"
+                      htmlFor={`custom-comment-${comment.commentId}`}
+                    >
+                      <span className="block text-muted-foreground">Custom reply</span>
+                      <Input
+                        id={`custom-comment-${comment.commentId}`}
+                        maxLength={500}
+                        onChange={(event) =>
+                          setComments((current) =>
+                            current.map((entry) =>
+                              entry.commentId === comment.commentId
+                                ? { ...entry, customComment: event.target.value }
+                                : entry,
+                            ),
+                          )
+                        }
+                        placeholder="Write your own reply and submit it directly"
+                        value={comment.customComment}
+                      />
+                    </label>
                     <div className="mt-3 flex items-center gap-2">
                       <Button
-                        disabled={comment.alreadyReplied || isPostingThisComment}
+                        disabled={
+                          isPostingThisComment ||
+                          normalizeOptionalTextInput(comment.customComment) === undefined
+                        }
                         onClick={() =>
                           postReplyMutation.mutate({
                             commentId: comment.commentId,
@@ -199,18 +268,88 @@ function AppIndex() {
                             channelId: channel.id,
                             videoId: comment.videoId,
                             commentText: comment.text,
-                            replyText: reply,
+                            replyText: normalizeOptionalTextInput(comment.customComment) ?? "",
+                            customComment: normalizeOptionalTextInput(comment.customComment),
                           })
                         }
                         size="sm"
                         type="button"
                       >
-                        {isPostingThisComment ? "Posting..." : `Use option ${index + 1}`}
+                        {isPostingThisComment ? "Posting..." : "Submit custom reply"}
                       </Button>
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  {comment.replyOptions.map((reply, index) => (
+                    <div key={`${comment.commentId}-${index}`} className="rounded-2xl border p-4">
+                      <p className="text-sm leading-6 whitespace-pre-wrap">{reply}</p>
+                      <div className="mt-3 flex items-center gap-2">
+                        <Button
+                          disabled={isPostingThisComment}
+                          onClick={() =>
+                            postReplyMutation.mutate({
+                              commentId: comment.commentId,
+                              threadId: comment.threadId,
+                              channelId: channel.id,
+                              videoId: comment.videoId,
+                              commentText: comment.text,
+                              replyText: reply,
+                            })
+                          }
+                          size="sm"
+                          type="button"
+                        >
+                          {isPostingThisComment ? "Posting..." : `Use option ${index + 1}`}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="rounded-2xl border p-4 lg:col-span-2">
+                    <label
+                      className="space-y-1 text-sm"
+                      htmlFor={`correction-instruction-${comment.commentId}`}
+                    >
+                      <span className="block text-muted-foreground">AI correction</span>
+                      <Input
+                        id={`correction-instruction-${comment.commentId}`}
+                        maxLength={500}
+                        onChange={(event) =>
+                          setComments((current) =>
+                            current.map((entry) =>
+                              entry.commentId === comment.commentId
+                                ? { ...entry, correctionInstruction: event.target.value }
+                                : entry,
+                            ),
+                          )
+                        }
+                        placeholder="Tell AI what was wrong and what the correct answer should be"
+                        value={comment.correctionInstruction}
+                      />
+                    </label>
+                    <div className="mt-3 flex items-center gap-2">
+                      <Button
+                        disabled={isRegeneratingThisComment}
+                        onClick={() =>
+                          regenerateReplyMutation.mutate({
+                            commentId: comment.commentId,
+                            threadId: comment.threadId,
+                            channelId: channel.id,
+                            videoId: comment.videoId,
+                            commentText: comment.text,
+                            customComment: "",
+                            correctionInstruction: comment.correctionInstruction,
+                          })
+                        }
+                        size="sm"
+                        type="button"
+                      >
+                        {isRegeneratingThisComment ? "Correcting..." : "Submit correction"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               {comment.postedReply ? (
                 <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-4">
@@ -238,6 +377,12 @@ function normalizeNumberInput(value: string, fallback: number, min: number, max:
   }
 
   return Math.min(max, Math.max(min, parsed));
+}
+
+function normalizeOptionalTextInput(value: string) {
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 function formatDate(value: string) {

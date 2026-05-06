@@ -3,7 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import { env } from "@/env/server";
 import { db } from "@/lib/db";
-import { account, youtubeRepliedComment } from "@/lib/db/schema";
+import { account, youtubeCommentDraft } from "@/lib/db/schema";
 
 const YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl";
 
@@ -21,7 +21,9 @@ export interface YoutubeCommentWithReplies {
   text: string;
   publishedAt: string;
   replyOptions: [string, string];
-  alreadyReplied: boolean;
+  customComment: string;
+  correctionInstruction: string;
+  isPosted: boolean;
   postedReply: string | null;
 }
 
@@ -167,17 +169,38 @@ function stripCodeFence(text: string) {
     .trim();
 }
 
-async function generateReplyOptions(commentText: string) {
+async function generateReplyOptions(
+  commentText: string,
+  options?: {
+    customComment?: string;
+    correctionInstruction?: string;
+  },
+) {
   const apiKey = ensureEnvValue(env.OPENROUTER_API_KEY, "OPENROUTER_API_KEY");
   const model = ensureEnvValue(env.OPENROUTER_MODEL, "OPENROUTER_MODEL");
+  const customComment = options?.customComment?.trim();
+  const correctionInstruction = options?.correctionInstruction?.trim();
 
   const prompt = [
     "You are a YouTube channel owner replying to a comment.",
     "Write exactly 2 distinct short reply options.",
     "Match the comment language exactly.",
     "Keep each option natural, warm, and under 220 characters.",
+    "If the comment asks for facts, use current accurate information and correct outdated assumptions politely.",
     "No hashtags. No markdown. No labels inside the values.",
     'Return strict JSON: {"optionA":"...","optionB":"..."}',
+    ...(customComment
+      ? [
+          `Custom rewrite request from channel owner: ${customComment}`,
+          "Use that request to revise both options.",
+        ]
+      : []),
+    ...(correctionInstruction
+      ? [
+          `Correction instruction from channel owner: ${correctionInstruction}`,
+          "If the previous answer was wrong or outdated, fix it.",
+        ]
+      : []),
     `Comment: ${commentText}`,
   ].join("\n");
 
@@ -368,33 +391,42 @@ export async function getRecentCommentsWithReplies(
     pageToken = payload.nextPageToken;
   }
 
-  const existingReplies =
+  const existingDrafts =
     unansweredComments.length === 0
       ? []
-      : await db.query.youtubeRepliedComment.findMany({
+      : await db.query.youtubeCommentDraft.findMany({
           where: and(
-            eq(youtubeRepliedComment.userId, userId),
+            eq(youtubeCommentDraft.userId, userId),
             inArray(
-              youtubeRepliedComment.commentId,
+              youtubeCommentDraft.commentId,
               unansweredComments.map((comment) => comment.commentId),
             ),
           ),
         });
 
-  const repliedMap = new Map(existingReplies.map((entry) => [entry.commentId, entry]));
+  const draftMap = new Map(existingDrafts.map((entry) => [entry.commentId, entry]));
 
   const withReplies = await Promise.all(
     unansweredComments.map(async (comment) => {
-      const existingReply = repliedMap.get(comment.commentId);
-      const replyOptions: [string, string] = existingReply
-        ? [existingReply.replyText, existingReply.replyText]
-        : await generateReplyOptions(comment.text);
+      const existingDraft = draftMap.get(comment.commentId);
+      const draft =
+        existingDraft ??
+        (await createYoutubeCommentDraft({
+          userId,
+          channelId: channel.id,
+          threadId: comment.threadId,
+          commentId: comment.commentId,
+          videoId: comment.videoId,
+          commentText: comment.text,
+        }));
 
       return {
         ...comment,
-        replyOptions,
-        alreadyReplied: Boolean(existingReply),
-        postedReply: existingReply?.replyText ?? null,
+        replyOptions: [draft.optionA, draft.optionB] as [string, string],
+        customComment: draft.customComment ?? "",
+        correctionInstruction: draft.correctionInstruction ?? "",
+        isPosted: Boolean(draft.replyText),
+        postedReply: draft.replyText ?? null,
       };
     }),
   );
@@ -405,6 +437,110 @@ export async function getRecentCommentsWithReplies(
   };
 }
 
+async function createYoutubeCommentDraft(args: {
+  userId: string;
+  channelId: string;
+  threadId: string;
+  commentId: string;
+  videoId: string | null;
+  commentText: string;
+  customComment?: string;
+  correctionInstruction?: string;
+}) {
+  const replyOptions = await generateReplyOptions(args.commentText, {
+    customComment: args.customComment,
+    correctionInstruction: args.correctionInstruction,
+  });
+
+  const [draft] = await db
+    .insert(youtubeCommentDraft)
+    .values({
+      userId: args.userId,
+      channelId: args.channelId,
+      threadId: args.threadId,
+      commentId: args.commentId,
+      videoId: args.videoId,
+      commentText: args.commentText,
+      optionA: replyOptions[0],
+      optionB: replyOptions[1],
+      customComment: args.customComment?.trim() || null,
+      correctionInstruction: args.correctionInstruction?.trim() || null,
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  if (draft) {
+    return draft;
+  }
+
+  const existingDraft = await db.query.youtubeCommentDraft.findFirst({
+    where: and(
+      eq(youtubeCommentDraft.userId, args.userId),
+      eq(youtubeCommentDraft.commentId, args.commentId),
+    ),
+  });
+
+  if (!existingDraft) {
+    throw new Error("Failed to persist generated YouTube reply options.");
+  }
+
+  return existingDraft;
+}
+
+export async function regenerateYoutubeCommentDraft(args: {
+  userId: string;
+  channelId: string;
+  threadId: string;
+  commentId: string;
+  videoId: string | null;
+  commentText: string;
+  customComment?: string;
+  correctionInstruction?: string;
+}) {
+  const replyOptions = await generateReplyOptions(args.commentText, {
+    customComment: args.customComment,
+    correctionInstruction: args.correctionInstruction,
+  });
+
+  const existingDraft = await db.query.youtubeCommentDraft.findFirst({
+    where: and(
+      eq(youtubeCommentDraft.userId, args.userId),
+      eq(youtubeCommentDraft.commentId, args.commentId),
+    ),
+  });
+
+  if (!existingDraft) {
+    return createYoutubeCommentDraft(args);
+  }
+
+  const [updatedDraft] = await db
+    .update(youtubeCommentDraft)
+    .set({
+      threadId: args.threadId,
+      channelId: args.channelId,
+      videoId: args.videoId,
+      commentText: args.commentText,
+      optionA: replyOptions[0],
+      optionB: replyOptions[1],
+      customComment: args.customComment?.trim() || null,
+      correctionInstruction: args.correctionInstruction?.trim() || null,
+      generatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(youtubeCommentDraft.userId, args.userId),
+        eq(youtubeCommentDraft.commentId, args.commentId),
+      ),
+    )
+    .returning();
+
+  if (!updatedDraft) {
+    throw new Error("Failed to update generated YouTube reply options.");
+  }
+
+  return updatedDraft;
+}
+
 export async function postReplyToYoutubeComment(args: {
   userId: string;
   commentId: string;
@@ -413,13 +549,17 @@ export async function postReplyToYoutubeComment(args: {
   videoId: string | null;
   commentText: string;
   replyText: string;
+  customComment?: string;
 }) {
-  const existingReply = await db.query.youtubeRepliedComment.findFirst({
-    where: eq(youtubeRepliedComment.commentId, args.commentId),
+  const existingDraft = await db.query.youtubeCommentDraft.findFirst({
+    where: and(
+      eq(youtubeCommentDraft.userId, args.userId),
+      eq(youtubeCommentDraft.commentId, args.commentId),
+    ),
   });
 
-  if (existingReply) {
-    return existingReply;
+  if (existingDraft?.replyText) {
+    return existingDraft;
   }
 
   const { accessToken } = await getUsableGoogleAccessToken(args.userId);
@@ -445,18 +585,58 @@ export async function postReplyToYoutubeComment(args: {
 
   await response.json();
 
-  const [inserted] = await db
-    .insert(youtubeRepliedComment)
-    .values({
-      commentId: args.commentId,
+  const [saved] = await db
+    .update(youtubeCommentDraft)
+    .set({
       threadId: args.threadId,
       channelId: args.channelId,
       videoId: args.videoId,
-      userId: args.userId,
       commentText: args.commentText,
+      customComment: args.customComment?.trim() || null,
       replyText: args.replyText,
+      repliedAt: new Date(),
     })
+    .where(
+      and(
+        eq(youtubeCommentDraft.userId, args.userId),
+        eq(youtubeCommentDraft.commentId, args.commentId),
+      ),
+    )
     .returning();
 
-  return inserted;
+  if (saved) {
+    return saved;
+  }
+
+  const draft = await createYoutubeCommentDraft({
+    userId: args.userId,
+    channelId: args.channelId,
+    threadId: args.threadId,
+    commentId: args.commentId,
+    videoId: args.videoId,
+    commentText: args.commentText,
+  });
+
+  const [insertedAfterGenerate] = await db
+    .update(youtubeCommentDraft)
+    .set({
+      optionA: draft.optionA,
+      optionB: draft.optionB,
+      customComment: args.customComment?.trim() || null,
+      replyText: args.replyText,
+      repliedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(youtubeCommentDraft.userId, args.userId),
+        eq(youtubeCommentDraft.commentId, args.commentId),
+      ),
+    )
+    .returning();
+
+  if (!insertedAfterGenerate) {
+    throw new Error("Failed to save posted YouTube reply.");
+  }
+
+  return insertedAfterGenerate;
 }
