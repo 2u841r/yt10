@@ -13,7 +13,10 @@ import {
   $postYoutubeReply,
   $regenerateYoutubeCommentDraft,
 } from "@/lib/youtube/functions";
-import type { YoutubeCommentWithReplies } from "@/lib/youtube/server";
+import {
+  YOUTUBE_COMMENT_UNAVAILABLE_MESSAGE,
+  type YoutubeCommentWithReplies,
+} from "@/lib/youtube/server";
 
 export const Route = createFileRoute("/_auth/app/")({
   loader: () => $getYoutubeChannel(),
@@ -102,6 +105,14 @@ function AppIndex() {
     setDaysBackInput(String(normalizeNumberInput(daysBackInput, 3, 1, 30)));
   }
 
+  function handleLimitInputChange(value: string) {
+    setLimitInput(normalizeNumericDraftInput(value));
+  }
+
+  function handleDaysBackInputChange(value: string) {
+    setDaysBackInput(normalizeNumericDraftInput(value));
+  }
+
   const postReplyMutation = useMutation({
     mutationFn: async (input: {
       commentId: string;
@@ -132,7 +143,19 @@ function AppIndex() {
       toast.success("Reply posted to YouTube.");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to post YouTube reply.");
+      const message = error instanceof Error ? error.message : "Failed to post YouTube reply.";
+
+      if (
+        error instanceof Error &&
+        error.message === YOUTUBE_COMMENT_UNAVAILABLE_MESSAGE &&
+        postReplyMutation.variables
+      ) {
+        setComments((current) =>
+          current.filter((comment) => comment.commentId !== postReplyMutation.variables?.commentId),
+        );
+      }
+
+      toast.error(message);
     },
   });
 
@@ -165,8 +188,10 @@ function AppIndex() {
                 max={20}
                 min={1}
                 onBlur={syncLimitInput}
-                onChange={(event) => setLimitInput(event.target.value)}
-                type="number"
+                onChange={(event) => handleLimitInputChange(event.target.value)}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                type="text"
                 value={limitInput}
               />
             </label>
@@ -178,8 +203,10 @@ function AppIndex() {
                 max={30}
                 min={1}
                 onBlur={syncDaysBackInput}
-                onChange={(event) => setDaysBackInput(event.target.value)}
-                type="number"
+                onChange={(event) => handleDaysBackInputChange(event.target.value)}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                type="text"
                 value={daysBackInput}
               />
             </label>
@@ -370,13 +397,19 @@ function AppIndex() {
 }
 
 function normalizeNumberInput(value: string, fallback: number, min: number, max: number) {
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(normalizeNumericDraftInput(value), 10);
 
   if (Number.isNaN(parsed)) {
     return fallback;
   }
 
   return Math.min(max, Math.max(min, parsed));
+}
+
+function normalizeNumericDraftInput(value: string) {
+  return value
+    .replaceAll(/[০-৯]/g, (char) => String(char.charCodeAt(0) - 2534))
+    .replaceAll(/\D/g, "");
 }
 
 function normalizeOptionalTextInput(value: string) {

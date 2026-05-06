@@ -27,6 +27,9 @@ export interface YoutubeCommentWithReplies {
   postedReply: string | null;
 }
 
+export const YOUTUBE_COMMENT_UNAVAILABLE_MESSAGE =
+  "Original YouTube comment is no longer available. It may have been deleted.";
+
 interface GoogleAccountTokenState {
   accessToken: string;
   refreshToken: string | null;
@@ -160,6 +163,18 @@ async function fetchYoutube<T>(
   }
 
   return (await response.json()) as T;
+}
+
+function isUnavailableYoutubeCommentResponse(status: number, text: string) {
+  const normalized = text.toLowerCase();
+
+  return (
+    status === 404 ||
+    normalized.includes("commentnotfound") ||
+    normalized.includes("parentcomment") ||
+    normalized.includes("not found") ||
+    normalized.includes("video comment not found")
+  );
 }
 
 function stripCodeFence(text: string) {
@@ -580,6 +595,20 @@ export async function postReplyToYoutubeComment(args: {
 
   if (!response.ok) {
     const text = await response.text();
+
+    if (isUnavailableYoutubeCommentResponse(response.status, text)) {
+      await db
+        .delete(youtubeCommentDraft)
+        .where(
+          and(
+            eq(youtubeCommentDraft.userId, args.userId),
+            eq(youtubeCommentDraft.commentId, args.commentId),
+          ),
+        );
+
+      throw new Error(YOUTUBE_COMMENT_UNAVAILABLE_MESSAGE);
+    }
+
     throw new Error(`Failed to post YouTube reply: ${text}`);
   }
 
