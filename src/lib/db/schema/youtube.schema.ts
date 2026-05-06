@@ -1,9 +1,10 @@
+import { sql } from "drizzle-orm";
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, index } from "drizzle-orm/pg-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { user } from "./auth.schema";
 
-export const youtubeCommentDraft = pgTable(
+export const youtubeCommentDraft = sqliteTable(
   "youtube_replied_comment",
   {
     commentId: text("comment_id").primaryKey(),
@@ -19,8 +20,10 @@ export const youtubeCommentDraft = pgTable(
     customComment: text("custom_comment"),
     correctionInstruction: text("correction_instruction"),
     replyText: text("reply_text"),
-    generatedAt: timestamp("generated_at").defaultNow().notNull(),
-    repliedAt: timestamp("replied_at"),
+    generatedAt: integer("generated_at", { mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+    repliedAt: integer("replied_at", { mode: "timestamp" }),
   },
   (table) => [
     index("youtube_replied_comment_user_id_idx").on(table.userId),

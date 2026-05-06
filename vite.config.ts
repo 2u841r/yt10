@@ -11,7 +11,7 @@ export default defineConfig({
     tsconfigPaths: true,
   },
   server: {
-    port: 3000,
+    port: 3333,
   },
   plugins: [
     devtools(),

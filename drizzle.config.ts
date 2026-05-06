@@ -9,9 +9,10 @@ export default {
   breakpoints: true,
   verbose: true,
   strict: true,
-  dialect: "postgresql",
+  dialect: "turso",
   casing: "snake_case",
   dbCredentials: {
-    url: env.DATABASE_URL,
+    url: env.TURSO_DATABASE_URL,
+    authToken: env.TURSO_AUTH_TOKEN,
   },
 } satisfies Config;

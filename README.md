@@ -12,7 +12,7 @@ pnpm create mugnavo
 - TanStack [Start](https://tanstack.com/start/latest) + [Router](https://tanstack.com/router/latest) + [Query](https://tanstack.com/query/latest)
 - [Tailwind CSS](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) + [Base UI](https://base-ui.com/) (base-luma, [`--preset b1aIaoaxs`](https://ui.shadcn.com/create?preset=b1aIaoaxs&base=base&template=start&pointer=true))
 - [Vite 8](https://vite.dev) + [Nitro v3](https://nitro.build/)
-- [Drizzle ORM](https://orm.drizzle.team/) + PostgreSQL
+- [Drizzle ORM](https://orm.drizzle.team/) + Turso/libSQL
 - [Better Auth](https://www.better-auth.com/)
 - [Oxlint](https://oxc.rs/docs/guide/usage/linter.html) + [Oxfmt](https://oxc.rs/docs/guide/usage/formatter.html)
 
@@ -29,14 +29,27 @@ pnpm create mugnavo
 
 2. Create a `.env` file based on [`.env.example`](./.env.example).
 
-3. Generate the initial migration with drizzle-kit, then apply to your database:
+   For local development, a file-backed SQLite database works without any remote service:
+
+   ```sh
+   TURSO_DATABASE_URL="file:./local.db"
+   ```
+
+   For a remote Turso/libSQL database, switch only the connection values:
+
+   ```sh
+   TURSO_DATABASE_URL="libsql://your-db.turso.io"
+   TURSO_AUTH_TOKEN="your-token"
+   ```
+
+3. Generate the initial migration with drizzle-kit, then apply it:
 
    ```sh
    pnpm db generate
    pnpm db migrate
    ```
 
-   https://orm.drizzle.team/docs/migrations
+   https://orm.drizzle.team/docs/get-started/turso-new
 
 4. Run the development server:
 
@@ -44,7 +57,7 @@ pnpm create mugnavo
    pnpm dev
    ```
 
-   The development server should now be running at [http://localhost:3000](http://localhost:3000).
+   The development server should now be running at [http://localhost:3333](http://localhost:3333).
 
 ## Deploying to production
 

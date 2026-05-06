@@ -3,8 +3,9 @@ import * as z from "zod";
 
 export const env = createEnv({
   server: {
-    DATABASE_URL: z.url(),
-    VITE_BASE_URL: z.url().default("http://localhost:3000"),
+    TURSO_DATABASE_URL: z.string().min(1),
+    TURSO_AUTH_TOKEN: z.string().min(1).optional(),
+    VITE_BASE_URL: z.url().default("http://localhost:3333"),
     BETTER_AUTH_SECRET: z.string().min(1),
     OPENROUTER_API_KEY: z.string().min(1).optional(),
     OPENROUTER_MODEL: z.string().min(1).optional(),

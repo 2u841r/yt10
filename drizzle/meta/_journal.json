@@ -1,26 +1,12 @@
 {
   "version": "7",
-  "dialect": "postgresql",
+  "dialect": "turso",
   "entries": [
     {
       "idx": 0,
-      "version": "7",
-      "when": 1778062807095,
-      "tag": "0000_salty_scarecrow",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1778065488293,
-      "tag": "0001_cultured_masque",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1778065488294,
-      "tag": "0002_youtube_comment_drafts",
+      "version": "6",
+      "when": 1778090198049,
+      "tag": "0000_unknown_baron_strucker",
       "breakpoints": true
     }
   ]
