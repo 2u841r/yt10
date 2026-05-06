@@ -11,11 +11,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useAuthSuspense } from "@/lib/auth/hooks";
 
-/**
- * This is the intro component for TanStarter, which you may delete after creating the project.
- * Have fun!
- */
-export function IntroPageDeleteMe() {
+export function LandingPage() {
   const [isCopied, setIsCopied] = useState(false);
 
   const repoUrl = "https://github.com/2u841r";

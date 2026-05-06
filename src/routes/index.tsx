@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { IntroPageDeleteMe } from "@/components/_DELETE_ME_intro_page";
+import { LandingPage } from "@/components/landing-page";
 
 export const Route = createFileRoute("/")({
   component: HomePage,
@@ -14,5 +14,5 @@ function HomePage() {
    *
    * Have fun!
    */
-  return <IntroPageDeleteMe />;
+  return <LandingPage />;
 }
