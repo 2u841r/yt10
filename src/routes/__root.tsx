@@ -60,7 +60,7 @@ function RootDocument({ children }: { readonly children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <ThemeProvider>
           {children}
           <Toaster richColors />
