@@ -18,11 +18,16 @@ export const $fetchYoutubeComments = createServerFn({ method: "POST" })
   .middleware([freshAuthMiddleware])
   .inputValidator(
     z.object({
-      count: z.number().int().min(1).max(10).default(10),
+      limit: z.number().int().min(1).max(20).default(10),
+      daysBack: z.number().int().min(1).max(30).default(3),
     }),
   )
   .handler(async ({ context, data }) => {
-    return getRecentCommentsWithReplies(context.user.id, data.count);
+    return getRecentCommentsWithReplies(context.user.id, {
+      limit: data.limit,
+      daysBack: data.daysBack,
+      maxScanned: 100,
+    });
   });
 
 export const $postYoutubeReply = createServerFn({ method: "POST" })

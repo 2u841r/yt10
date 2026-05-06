@@ -267,58 +267,116 @@ export async function getYoutubeChannelForUser(userId: string): Promise<YoutubeC
 
 export async function getRecentCommentsWithReplies(
   userId: string,
-  count = 10,
+  options?: {
+    limit?: number;
+    daysBack?: number;
+    maxScanned?: number;
+  },
 ): Promise<{
   channel: YoutubeChannel;
   comments: YoutubeCommentWithReplies[];
 }> {
   const { accessToken } = await getUsableGoogleAccessToken(userId);
   const channel = await getYoutubeChannelForUser(userId);
+  const limit = options?.limit ?? 10;
+  const daysBack = options?.daysBack ?? 3;
+  const maxScanned = options?.maxScanned ?? 100;
+  const cutoffTime = Date.now() - daysBack * 24 * 60 * 60 * 1000;
+  const unansweredComments: Array<{
+    threadId: string;
+    commentId: string;
+    videoId: string | null;
+    author: string;
+    text: string;
+    publishedAt: string;
+  }> = [];
 
-  const payload = await fetchYoutube<{
-    items?: Array<{
-      id: string;
-      snippet?: {
-        videoId?: string;
-        topLevelComment?: {
-          id: string;
-          snippet?: {
-            authorDisplayName?: string;
-            textDisplay?: string;
-            publishedAt?: string;
+  let pageToken: string | undefined;
+  let scanned = 0;
+  let stopScanning = false;
+
+  while (unansweredComments.length < limit && scanned < maxScanned && !stopScanning) {
+    const pageSize = Math.min(50, maxScanned - scanned);
+    const payload = await fetchYoutube<{
+      nextPageToken?: string;
+      items?: Array<{
+        id: string;
+        snippet?: {
+          videoId?: string;
+          totalReplyCount?: number;
+          topLevelComment?: {
+            id: string;
+            snippet?: {
+              authorDisplayName?: string;
+              textDisplay?: string;
+              publishedAt?: string;
+            };
           };
         };
-      };
-    }>;
-  }>(accessToken, "commentThreads", {
-    part: "snippet",
-    allThreadsRelatedToChannelId: channel.id,
-    maxResults: String(count),
-    order: "time",
-    textFormat: "plainText",
-  });
+      }>;
+    }>(accessToken, "commentThreads", {
+      part: "snippet",
+      allThreadsRelatedToChannelId: channel.id,
+      maxResults: String(pageSize),
+      order: "time",
+      textFormat: "plainText",
+      ...(pageToken ? { pageToken } : {}),
+    });
 
-  const comments =
-    payload.items?.map((item) => ({
-      threadId: item.id,
-      commentId: item.snippet?.topLevelComment?.id ?? "",
-      videoId: item.snippet?.videoId ?? null,
-      author: item.snippet?.topLevelComment?.snippet?.authorDisplayName ?? "Unknown author",
-      text: item.snippet?.topLevelComment?.snippet?.textDisplay ?? "",
-      publishedAt: item.snippet?.topLevelComment?.snippet?.publishedAt ?? "",
-    })) ?? [];
+    const items = payload.items ?? [];
 
-  const validComments = comments.filter((comment) => comment.commentId && comment.text);
+    for (const item of items) {
+      scanned += 1;
+
+      const publishedAt = item.snippet?.topLevelComment?.snippet?.publishedAt ?? "";
+      const publishedTime = publishedAt ? new Date(publishedAt).getTime() : 0;
+
+      if (!publishedTime || publishedTime < cutoffTime) {
+        stopScanning = true;
+        break;
+      }
+
+      if ((item.snippet?.totalReplyCount ?? 0) > 0) {
+        continue;
+      }
+
+      const commentId = item.snippet?.topLevelComment?.id ?? "";
+      const text = item.snippet?.topLevelComment?.snippet?.textDisplay ?? "";
+
+      if (!commentId || !text) {
+        continue;
+      }
+
+      unansweredComments.push({
+        threadId: item.id,
+        commentId,
+        videoId: item.snippet?.videoId ?? null,
+        author: item.snippet?.topLevelComment?.snippet?.authorDisplayName ?? "Unknown author",
+        text,
+        publishedAt,
+      });
+
+      if (unansweredComments.length >= limit) {
+        break;
+      }
+    }
+
+    if (!payload.nextPageToken || items.length === 0) {
+      break;
+    }
+
+    pageToken = payload.nextPageToken;
+  }
 
   const existingReplies =
-    validComments.length === 0
+    unansweredComments.length === 0
       ? []
       : await db.query.youtubeRepliedComment.findMany({
           where: and(
             eq(youtubeRepliedComment.userId, userId),
             inArray(
               youtubeRepliedComment.commentId,
-              validComments.map((comment) => comment.commentId),
+              unansweredComments.map((comment) => comment.commentId),
             ),
           ),
         });
@@ -326,7 +384,7 @@ export async function getRecentCommentsWithReplies(
   const repliedMap = new Map(existingReplies.map((entry) => [entry.commentId, entry]));
 
   const withReplies = await Promise.all(
-    validComments.map(async (comment) => {
+    unansweredComments.map(async (comment) => {
       const existingReply = repliedMap.get(comment.commentId);
       const replyOptions: [string, string] = existingReply
         ? [existingReply.replyText, existingReply.replyText]

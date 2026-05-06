@@ -5,6 +5,7 @@ import { startTransition, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuthSuspense } from "@/lib/auth/hooks";
 import {
   $fetchYoutubeComments,
@@ -25,12 +26,15 @@ function AppIndex() {
   const postYoutubeReply = useServerFn($postYoutubeReply);
   const [channel, setChannel] = useState(initialChannel);
   const [comments, setComments] = useState<YoutubeCommentWithReplies[]>([]);
+  const [limit, setLimit] = useState(10);
+  const [daysBack, setDaysBack] = useState(3);
 
   const fetchCommentsMutation = useMutation({
     mutationFn: async () => {
       return fetchYoutubeComments({
         data: {
-          count: 10,
+          limit,
+          daysBack,
         },
       });
     },
@@ -85,9 +89,12 @@ function AppIndex() {
           <p className="text-sm text-muted-foreground">Signed in as {user?.email}</p>
           <h1 className="text-2xl font-semibold tracking-tight">{channel.title}</h1>
           <p className="text-sm text-muted-foreground">Channel ID: {channel.id}</p>
+          <p className="text-sm text-muted-foreground">
+            Only unanswered comments are fetched, within a recent time window.
+          </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-end gap-3">
           {channel.thumbnailUrl ? (
             <img
               alt={channel.title}
@@ -95,20 +102,49 @@ function AppIndex() {
               src={channel.thumbnailUrl}
             />
           ) : null}
-          <Button
-            disabled={fetchCommentsMutation.isPending}
-            onClick={() => fetchCommentsMutation.mutate()}
-            type="button"
-          >
-            {fetchCommentsMutation.isPending ? "Fetching + generating..." : "Get last 10 comments"}
-          </Button>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="space-y-1 text-sm" htmlFor="comment-limit">
+              <span className="block text-muted-foreground">Comments</span>
+              <Input
+                className="w-24"
+                id="comment-limit"
+                max={20}
+                min={1}
+                onChange={(event) => setLimit(Number(event.target.value) || 10)}
+                type="number"
+                value={limit}
+              />
+            </label>
+            <label className="space-y-1 text-sm" htmlFor="days-back">
+              <span className="block text-muted-foreground">Days back</span>
+              <Input
+                className="w-24"
+                id="days-back"
+                max={30}
+                min={1}
+                onChange={(event) => setDaysBack(Number(event.target.value) || 3)}
+                type="number"
+                value={daysBack}
+              />
+            </label>
+            <Button
+              disabled={fetchCommentsMutation.isPending}
+              onClick={() => fetchCommentsMutation.mutate()}
+              type="button"
+            >
+              {fetchCommentsMutation.isPending
+                ? "Fetching + generating..."
+                : "Get unanswered comments"}
+            </Button>
+          </div>
         </div>
       </div>
 
       <div className="grid gap-4">
         {comments.length === 0 ? (
           <div className="rounded-3xl border border-dashed bg-background px-5 py-10 text-center text-sm text-muted-foreground">
-            Fetch the latest 10 comments to generate two AI replies for each one.
+            Fetch unanswered comments from the last few days to generate two AI replies for each
+            one.
           </div>
         ) : null}
 
