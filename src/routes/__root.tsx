@@ -33,19 +33,19 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       },
       {
         // scaffold:title
-        title: "TanStarter",
+        title: "YT-Bot by Zubair Ibn Zamir",
       },
       {
         name: "description",
         // scaffold:description
-        content: "A minimal starter template for 🏝️ TanStack Start.",
+        content: "A youtube bot for reply comments",
       },
     ],
     links: [
       // Replace with your icons here, or remove if you have a favicon.ico in public/
       {
         rel: "icon",
-        href: "https://mugnavo.com/favicon.ico",
+        href: "https://fav.farm/%F0%9F%A4%96",
       },
       { rel: "stylesheet", href: appCss },
     ],

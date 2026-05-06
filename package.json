@@ -1,5 +1,5 @@
 {
-  "name": "tanstarter",
+  "name": "yt-bot",
   "private": true,
   "type": "module",
   "scripts": {
@@ -81,6 +81,5 @@
   },
   "lint-staged": {
     "*": "oxfmt --no-error-on-unmatched-pattern"
-  },
-  "generator": "create-mugnavo"
+  }
 }
