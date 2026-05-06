@@ -58,7 +58,7 @@ export function IntroPageDeleteMe() {
           </div>
 
           <h1 className="mb-6 text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-            A <span className="text-red-500 dark:text-red-200">youtube</span> bot for reply comments
+            A <span className="text-red-500 dark:text-red-500">youtube</span> bot for reply comments
           </h1>
         </header>
 
