@@ -26,11 +26,14 @@ function AppIndex() {
   const postYoutubeReply = useServerFn($postYoutubeReply);
   const [channel, setChannel] = useState(initialChannel);
   const [comments, setComments] = useState<YoutubeCommentWithReplies[]>([]);
-  const [limit, setLimit] = useState(10);
-  const [daysBack, setDaysBack] = useState(3);
+  const [limitInput, setLimitInput] = useState("10");
+  const [daysBackInput, setDaysBackInput] = useState("3");
 
   const fetchCommentsMutation = useMutation({
     mutationFn: async () => {
+      const limit = normalizeNumberInput(limitInput, 10, 1, 20);
+      const daysBack = normalizeNumberInput(daysBackInput, 3, 1, 30);
+
       return fetchYoutubeComments({
         data: {
           limit,
@@ -48,6 +51,14 @@ function AppIndex() {
       toast.error(error instanceof Error ? error.message : "Failed to fetch YouTube comments.");
     },
   });
+
+  function syncLimitInput() {
+    setLimitInput(String(normalizeNumberInput(limitInput, 10, 1, 20)));
+  }
+
+  function syncDaysBackInput() {
+    setDaysBackInput(String(normalizeNumberInput(daysBackInput, 3, 1, 30)));
+  }
 
   const postReplyMutation = useMutation({
     mutationFn: async (input: {
@@ -110,9 +121,10 @@ function AppIndex() {
                 id="comment-limit"
                 max={20}
                 min={1}
-                onChange={(event) => setLimit(Number(event.target.value) || 10)}
+                onBlur={syncLimitInput}
+                onChange={(event) => setLimitInput(event.target.value)}
                 type="number"
-                value={limit}
+                value={limitInput}
               />
             </label>
             <label className="space-y-1 text-sm" htmlFor="days-back">
@@ -122,9 +134,10 @@ function AppIndex() {
                 id="days-back"
                 max={30}
                 min={1}
-                onChange={(event) => setDaysBack(Number(event.target.value) || 3)}
+                onBlur={syncDaysBackInput}
+                onChange={(event) => setDaysBackInput(event.target.value)}
                 type="number"
-                value={daysBack}
+                value={daysBackInput}
               />
             </label>
             <Button
@@ -215,6 +228,16 @@ function AppIndex() {
       </div>
     </div>
   );
+}
+
+function normalizeNumberInput(value: string, fallback: number, min: number, max: number) {
+  const parsed = Number.parseInt(value, 10);
+
+  if (Number.isNaN(parsed)) {
+    return fallback;
+  }
+
+  return Math.min(max, Math.max(min, parsed));
 }
 
 function formatDate(value: string) {
