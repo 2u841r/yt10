@@ -10,29 +10,20 @@ export const Route = createFileRoute("/_auth/app")({
 
 function AppLayout() {
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center gap-2 px-2">
-      <div className="flex w-full max-w-3xl justify-between">
+    <div className="flex min-h-svh flex-col items-center gap-4 px-3 py-6">
+      <div className="flex w-full max-w-5xl justify-between">
         <div className="flex items-center gap-1">
           <Button render={<Link to="/" />} size="sm" nativeButton={false}>
             back to home
           </Button>
-          <span className="rounded-md border bg-card p-1 font-mono text-xs text-card-foreground">
-            _auth/app/route.tsx
-          </span>
         </div>
         <ThemeToggle />
       </div>
-      <div className="w-full max-w-3xl rounded-md border p-2">
+      <div className="w-full max-w-5xl rounded-3xl border bg-card p-4 shadow-sm">
         <Outlet />
       </div>
 
-      <div className="flex w-full max-w-3xl flex-wrap justify-between gap-2 text-sm">
-        <div className="flex flex-col gap-0.5">
-          what's next? maybe a sidebar?
-          <span className="rounded-md border bg-card px-2 py-1 font-mono text-xs text-card-foreground">
-            pnpm ui add sidebar
-          </span>
-        </div>
+      <div className="flex w-full max-w-5xl flex-wrap justify-end gap-2 text-sm">
         <SignOutButton />
       </div>
     </div>
