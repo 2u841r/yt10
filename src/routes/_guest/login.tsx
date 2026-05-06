@@ -97,16 +97,9 @@ function LoginForm() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <SignInSocialButton
-              provider="github"
-              callbackURL={redirectUrl}
-              disabled={isPending}
-              icon={<SiGithub className="size-4" />}
-            />
-            <SignInSocialButton
               provider="google"
               callbackURL={redirectUrl}
-              // disabled={isPending}
-              disabled={true} // TODO disabled just for the preview deployment at https://tanstarter.mugnavo.com
+              disabled={false} // TODO disabled just for the preview deployment at https://tanstarter.mugnavo.com
               icon={<SiGoogle className="size-4" />}
             />
           </div>

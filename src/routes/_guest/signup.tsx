@@ -1,4 +1,4 @@
-import { SiGithub, SiGoogle } from "@icons-pack/react-simple-icons";
+import { SiGoogle } from "@icons-pack/react-simple-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { GalleryVerticalEndIcon, LoaderCircleIcon } from "lucide-react";
@@ -128,16 +128,10 @@ function SignupForm() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <SignInSocialButton
-              provider="github"
-              callbackURL={redirectUrl}
-              disabled={isPending}
-              icon={<SiGithub className="size-4" />}
-            />
-            <SignInSocialButton
               provider="google"
               callbackURL={redirectUrl}
               // disabled={isPending}
-              disabled={true} // TODO disabled just for the preview deployment at https://tanstarter.mugnavo.com
+              disabled={false} // TODO disabled just for the preview deployment at https://tanstarter.mugnavo.com
               icon={<SiGoogle className="size-4" />}
             />
           </div>
