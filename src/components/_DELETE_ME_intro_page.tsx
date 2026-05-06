@@ -18,7 +18,7 @@ import { useAuthSuspense } from "@/lib/auth/hooks";
 export function IntroPageDeleteMe() {
   const [isCopied, setIsCopied] = useState(false);
 
-  const repoUrl = "https://github.com/mugnavo/tanstarter";
+  const repoUrl = "https://github.com/2u841r";
   const cloneCommand = "pnpm create mugnavo";
   const fallbackStarsCount = 1000;
 
@@ -38,7 +38,7 @@ export function IntroPageDeleteMe() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto max-w-3xl px-4 pt-16 pb-12 md:pt-32">
+      <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 pt-16 pb-12 md:pt-32">
         <header className="mb-8">
           <div className="mb-6 flex items-center justify-between">
             <a href={repoUrl} className="flex items-center gap-2 hover:underline">
@@ -48,106 +48,25 @@ export function IntroPageDeleteMe() {
                 className="size-5 md:size-6"
               />
               <span className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
-                tanstarter
+                YT-Bot
               </span>
             </a>
             <div className="flex items-center gap-2">
-              <RepoStarsBadge href={repoUrl} fallbackStarsCount={fallbackStarsCount} />
+              {/* <RepoStarsBadge href={repoUrl} fallbackStarsCount={fallbackStarsCount} /> */}
               <ThemeToggle />
             </div>
           </div>
 
           <h1 className="mb-6 text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-            A <span className="text-yellow-500 dark:text-yellow-200">minimal</span> starter template
-            for TanStack Start.
+            A <span className="text-red-500 dark:text-red-200">youtube</span> bot for reply comments
           </h1>
-
-          <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl">
-            A minimal, opinionated foundation for building type-safe web applications without the
-            extra boilerplate.
-          </p>
         </header>
-
-        <section className="mb-12">
-          <div className="rounded-xl border border-border bg-card p-1 shadow-2xl">
-            <div className="group flex items-center justify-between rounded-lg border border-border bg-card p-4">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <TerminalIcon className="hidden size-4 shrink-0 text-muted-foreground/70 sm:inline" />
-                <code className="overflow-hidden font-mono text-sm text-ellipsis whitespace-nowrap md:text-base">
-                  <span className="mr-2 hidden text-muted-foreground/70 select-none sm:inline">
-                    $
-                  </span>
-                  {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-                  <span className="select-all" onClick={copyToClipboard}>
-                    {cloneCommand}
-                  </span>
-                </code>
-              </div>
-              <button
-                onClick={copyToClipboard}
-                className="ml-4 shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                title="Copy command"
-              >
-                {isCopied ? <CheckIcon className="size-5" /> : <CopyIcon className="size-5" />}
-              </button>
-            </div>
-          </div>
-        </section>
 
         <Suspense fallback={<div className="py-6">Loading session...</div>}>
           <UserAction />
         </Suspense>
 
-        <section className="mb-16 grid grid-cols-1 gap-x-12 gap-y-10 md:grid-cols-2">
-          <Feature
-            title="Full-Stack Foundation"
-            desc="Build on a modern full-stack framework with TanStack Start, Router, and Vite."
-          />
-          <Feature
-            title="Only the Essentials"
-            desc="Drizzle ORM, Better Auth, shadcn/ui. Less boilerplate that you'll end up deleting anyway."
-          />
-          <Feature
-            title="End-to-end Type Safety"
-            desc="Effortless type safety powered by TanStack Router and Start server functions."
-          />
-          <Feature
-            title="Next-Gen Tooling"
-            desc="Powered by Vite 8, Rolldown, and Oxc for a faster development workflow."
-          />
-        </section>
-
-        <section className="mb-12 space-y-2">
-          {TECH_BADGE_ROWS.map((row, rowIndex) => (
-            <div key={rowIndex} className="flex flex-wrap items-center justify-center gap-2">
-              {row.map((badge) => (
-                <a
-                  key={badge.alt}
-                  href={badge.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="transition-opacity hover:opacity-80"
-                >
-                  <img alt={badge.alt} src={badge.src} />
-                </a>
-              ))}
-            </div>
-          ))}
-        </section>
-
-        <section className="mx-auto mb-16 hidden max-w-[65ch] space-y-3 bg-card/50 p-4 text-sm text-foreground/80 sm:block">
-          <p>
-            You may delete this component at{" "}
-            <span className="rounded-md border border-border bg-card px-1 py-1.5 font-mono">
-              components/_DELETE_ME_intro_page.tsx
-            </span>{" "}
-            after creating your project.
-          </p>
-
-          <p>Happy coding!</p>
-        </section>
-
-        <footer className="flex flex-col items-center justify-between gap-6 text-sm md:flex-row">
+        <footer className="mt-auto flex flex-col items-center justify-between gap-6 text-sm md:flex-row">
           <a
             href={repoUrl}
             target="_blank"
@@ -158,12 +77,12 @@ export function IntroPageDeleteMe() {
             GitHub
           </a>
           <a
-            href="https://mugnavo.com"
+            href="https://zubairiz.com"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1 underline decoration-border transition-all hover:decoration-foreground"
           >
-            Mugnavo
+            Zubair
             <ExternalLinkIcon className="size-4" />
           </a>
         </footer>
@@ -177,7 +96,7 @@ function UserAction() {
 
   return user ? (
     <section className="mb-20 flex flex-col items-center space-y-1.5">
-      <div className="mb-4 flex w-full items-center gap-2">
+      {/* <div className="mb-4 flex w-full items-center gap-2">
         <div className="size-2 animate-pulse rounded-full bg-primary"></div>
         <h2 className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
           Session
@@ -200,7 +119,7 @@ function UserAction() {
             {JSON.stringify(user, null, 2)}
           </pre>
         </div>
-      </div>
+      </div> */}
 
       <Button render={<Link to="/login" />} className="w-fit" size="lg" nativeButton={false}>
         Go to /app
