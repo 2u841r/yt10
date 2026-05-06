@@ -16,7 +16,7 @@ import {
 import {
   YOUTUBE_COMMENT_UNAVAILABLE_MESSAGE,
   type YoutubeCommentWithReplies,
-} from "@/lib/youtube/server";
+} from "@/lib/youtube/shared";
 
 export const Route = createFileRoute("/_auth/app/")({
   loader: () => $getYoutubeChannel(),

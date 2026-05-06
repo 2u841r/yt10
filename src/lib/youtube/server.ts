@@ -4,6 +4,10 @@ import { and, eq, inArray } from "drizzle-orm";
 import { env } from "@/env/server";
 import { db } from "@/lib/db";
 import { account, youtubeCommentDraft } from "@/lib/db/schema";
+import {
+  YOUTUBE_COMMENT_UNAVAILABLE_MESSAGE,
+  type YoutubeCommentWithReplies,
+} from "@/lib/youtube/shared";
 
 const YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl";
 
@@ -12,23 +16,6 @@ export interface YoutubeChannel {
   title: string;
   thumbnailUrl: string | null;
 }
-
-export interface YoutubeCommentWithReplies {
-  threadId: string;
-  commentId: string;
-  videoId: string | null;
-  author: string;
-  text: string;
-  publishedAt: string;
-  replyOptions: [string, string];
-  customComment: string;
-  correctionInstruction: string;
-  isPosted: boolean;
-  postedReply: string | null;
-}
-
-export const YOUTUBE_COMMENT_UNAVAILABLE_MESSAGE =
-  "Original YouTube comment is no longer available. It may have been deleted.";
 
 interface GoogleAccountTokenState {
   accessToken: string;
