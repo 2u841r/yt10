@@ -1,17 +1,29 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { startTransition, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuthSuspense } from "@/lib/auth/hooks";
 import {
   $fetchYoutubeComments,
+  $getAutoReplyConfig,
+  $getRecentAutoReplyActivity,
   $getYoutubeChannel,
   $postYoutubeReply,
   $regenerateYoutubeCommentDraft,
+  $updateAutoReplyConfig,
 } from "@/lib/youtube/functions";
 import {
   YOUTUBE_COMMENT_UNAVAILABLE_MESSAGE,
@@ -26,13 +38,53 @@ export const Route = createFileRoute("/_auth/app/")({
 function AppIndex() {
   const { user } = useAuthSuspense();
   const initialChannel = Route.useLoaderData();
+  const queryClient = useQueryClient();
   const fetchYoutubeComments = useServerFn($fetchYoutubeComments);
   const postYoutubeReply = useServerFn($postYoutubeReply);
   const regenerateYoutubeCommentDraft = useServerFn($regenerateYoutubeCommentDraft);
+  const getAutoReplyConfig = useServerFn($getAutoReplyConfig);
+  const getRecentAutoReplyActivity = useServerFn($getRecentAutoReplyActivity);
+  const updateAutoReplyConfig = useServerFn($updateAutoReplyConfig);
   const [channel, setChannel] = useState(initialChannel);
   const [comments, setComments] = useState<YoutubeCommentWithReplies[]>([]);
   const [limitInput, setLimitInput] = useState("10");
   const [daysBackInput, setDaysBackInput] = useState("3");
+
+  const autoReplyQuery = useQuery({
+    queryKey: ["auto-reply-config"],
+    queryFn: () => getAutoReplyConfig(),
+    staleTime: 30_000,
+  });
+
+  const recentActivityQuery = useQuery({
+    queryKey: ["auto-reply-activity"],
+    queryFn: () => getRecentAutoReplyActivity(),
+    refetchInterval: autoReplyQuery.data?.enabled ? 15_000 : false,
+    enabled: !!autoReplyQuery.data,
+  });
+
+  const updateAutoReplyMutation = useMutation({
+    mutationFn: async (input: {
+      enabled?: boolean;
+      intervalMinutes?: number;
+      commentLimit?: number;
+      daysBack?: number;
+      dryRun?: boolean;
+    }) => {
+      return updateAutoReplyConfig({
+        data: {
+          channelId: channel.id,
+          ...input,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auto-reply-config"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update auto-reply settings.");
+    },
+  });
 
   const fetchCommentsMutation = useMutation({
     mutationFn: async () => {
@@ -220,6 +272,184 @@ function AppIndex() {
                 : "Get unanswered comments"}
             </Button>
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border bg-background p-5">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold tracking-tight">Auto Reply</h2>
+              <p className="text-sm text-muted-foreground">
+                Automatically fetch, generate, and post replies to new comments on a schedule.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={autoReplyQuery.data?.enabled ?? false}
+                id="auto-reply-enabled"
+                onCheckedChange={(checked) =>
+                  updateAutoReplyMutation.mutate({ enabled: checked === true })
+                }
+              />
+              <Label htmlFor="auto-reply-enabled">Enabled</Label>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground" htmlFor="auto-reply-interval">
+                Interval
+              </Label>
+              <Select
+                disabled={!(autoReplyQuery.data?.enabled ?? false)}
+                value={String(autoReplyQuery.data?.intervalMinutes ?? 10)}
+                onValueChange={(value) =>
+                  updateAutoReplyMutation.mutate({
+                    intervalMinutes: Number(value),
+                  })
+                }
+              >
+                <SelectTrigger className="w-28" id="auto-reply-interval">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 3, 5, 10, 15, 30, 60].map((minutes) => (
+                    <SelectItem key={minutes} value={String(minutes)}>
+                      {minutes} min
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground" htmlFor="auto-reply-limit">
+                Per run
+              </Label>
+              <Input
+                className="w-20"
+                disabled={!(autoReplyQuery.data?.enabled ?? false)}
+                id="auto-reply-limit"
+                key={autoReplyQuery.data?.id ?? "pending"}
+                max={20}
+                min={1}
+                onBlur={(event) => {
+                  const val = normalizeNumberInput(event.target.value, 3, 1, 20);
+                  updateAutoReplyMutation.mutate({ commentLimit: val });
+                }}
+                onChange={(event) => {
+                  event.target.value = normalizeNumericDraftInput(event.target.value);
+                }}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                type="text"
+                defaultValue={String(autoReplyQuery.data?.commentLimit ?? 3)}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground" htmlFor="auto-reply-days">
+                Days back
+              </Label>
+              <Input
+                className="w-20"
+                disabled={!(autoReplyQuery.data?.enabled ?? false)}
+                id="auto-reply-days"
+                key={autoReplyQuery.data?.id ?? "pending"}
+                max={30}
+                min={1}
+                onBlur={(event) => {
+                  const val = normalizeNumberInput(event.target.value, 3, 1, 30);
+                  updateAutoReplyMutation.mutate({ daysBack: val });
+                }}
+                onChange={(event) => {
+                  event.target.value = normalizeNumericDraftInput(event.target.value);
+                }}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                type="text"
+                defaultValue={String(autoReplyQuery.data?.daysBack ?? 3)}
+              />
+            </div>
+
+            <div className="flex items-center gap-2 pb-1.5">
+              <Checkbox
+                checked={autoReplyQuery.data?.dryRun ?? true}
+                disabled={!(autoReplyQuery.data?.enabled ?? false)}
+                id="auto-reply-dry-run"
+                onCheckedChange={(checked) =>
+                  updateAutoReplyMutation.mutate({ dryRun: checked === true })
+                }
+              />
+              <Label htmlFor="auto-reply-dry-run">Dry run (fetch only, no post)</Label>
+            </div>
+          </div>
+
+          {autoReplyQuery.data ? (
+            <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+              {autoReplyQuery.data.enabled ? (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">Active</span>
+              ) : (
+                <span className="rounded-full bg-muted px-2 py-0.5">Paused</span>
+              )}
+              {autoReplyQuery.data.lastRunAt ? (
+                <span>Last run: {formatTimestamp(autoReplyQuery.data.lastRunAt)}</span>
+              ) : null}
+              {autoReplyQuery.data.lastSuccessAt ? (
+                <span>Last reply: {formatTimestamp(autoReplyQuery.data.lastSuccessAt)}</span>
+              ) : null}
+              {autoReplyQuery.data.lastError ? (
+                <span className="max-w-96 truncate text-destructive">
+                  Error: {autoReplyQuery.data.lastError}
+                </span>
+              ) : null}
+              {autoReplyQuery.data.consecutiveFailures > 0 ? (
+                <span className="text-destructive">
+                  Failures: {autoReplyQuery.data.consecutiveFailures}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+
+          {recentActivityQuery.data && recentActivityQuery.data.length > 0 ? (
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-muted-foreground">Recent auto replies</p>
+              {recentActivityQuery.data.slice(0, 5).map((entry) => (
+                <div key={entry.commentId} className="space-y-1.5">
+                  <div className="flex items-start gap-2">
+                    {entry.authorAvatarUrl ? (
+                      <img
+                        alt=""
+                        className="mt-0.5 size-5 shrink-0 rounded-full"
+                        src={entry.authorAvatarUrl}
+                      />
+                    ) : (
+                      <div className="mt-0.5 size-5 shrink-0 rounded-full bg-muted" />
+                    )}
+                    <div className="max-w-[50%] min-w-0">
+                      <p className="text-[10px] font-medium text-muted-foreground">
+                        {entry.authorName ?? "Commenter"}
+                      </p>
+                      <p className="rounded-2xl rounded-bl-md border bg-muted px-3 py-1.5 text-xs leading-relaxed">
+                        {entry.commentText}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <div className="max-w-[50%] space-y-0.5">
+                      <p className="rounded-2xl rounded-br-md bg-primary px-3 py-1.5 text-xs leading-relaxed text-primary-foreground">
+                        {entry.replyText}
+                      </p>
+                      <p className="text-right text-[10px] text-muted-foreground">
+                        {entry.repliedAt ? formatTimestamp(entry.repliedAt) : ""}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -427,4 +657,11 @@ function formatDate(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function formatTimestamp(value: Date) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(value);
 }

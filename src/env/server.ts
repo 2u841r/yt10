@@ -13,6 +13,9 @@ export const env = createEnv({
     // OAuth2 providers, optional, update as needed
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
+
+    // Cron secret for protecting automated endpoints
+    CRON_SECRET: z.string().optional(),
   },
   runtimeEnv: process.env,
 });

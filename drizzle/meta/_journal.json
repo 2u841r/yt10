@@ -8,6 +8,20 @@
       "when": 1778090198049,
       "tag": "0000_unknown_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1778109477120,
+      "tag": "0001_add_auto_reply_config",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1778113767559,
+      "tag": "0002_add_author_to_draft",
+      "breakpoints": true
     }
   ]
 }

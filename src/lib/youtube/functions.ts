@@ -3,6 +3,11 @@ import { z } from "zod";
 
 import { freshAuthMiddleware } from "@/lib/auth/middleware";
 import {
+  getAutoReplyConfigForUser,
+  getRecentAutoReplyActivity,
+  upsertAutoReplyConfig,
+} from "@/lib/youtube/auto-reply";
+import {
   getRecentCommentsWithReplies,
   regenerateYoutubeCommentDraft,
   getYoutubeChannelForUser,
@@ -81,4 +86,40 @@ export const $postYoutubeReply = createServerFn({ method: "POST" })
       replyText: data.replyText,
       customComment: data.customComment,
     });
+  });
+
+export const $getAutoReplyConfig = createServerFn({ method: "GET" })
+  .middleware([freshAuthMiddleware])
+  .handler(async ({ context }) => {
+    return getAutoReplyConfigForUser(context.user.id);
+  });
+
+export const $updateAutoReplyConfig = createServerFn({ method: "POST" })
+  .middleware([freshAuthMiddleware])
+  .inputValidator(
+    z.object({
+      channelId: z.string().min(1),
+      enabled: z.boolean().optional(),
+      intervalMinutes: z.number().int().min(1).max(1440).optional(),
+      commentLimit: z.number().int().min(1).max(20).optional(),
+      daysBack: z.number().int().min(1).max(30).optional(),
+      dryRun: z.boolean().optional(),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    return upsertAutoReplyConfig({
+      userId: context.user.id,
+      channelId: data.channelId,
+      enabled: data.enabled,
+      intervalMinutes: data.intervalMinutes,
+      commentLimit: data.commentLimit,
+      daysBack: data.daysBack,
+      dryRun: data.dryRun,
+    });
+  });
+
+export const $getRecentAutoReplyActivity = createServerFn({ method: "GET" })
+  .middleware([freshAuthMiddleware])
+  .handler(async ({ context }) => {
+    return getRecentAutoReplyActivity(context.user.id);
   });

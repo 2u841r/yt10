@@ -13,6 +13,7 @@
     "format:check": "oxfmt --check",
     "check": "pnpm format && pnpm lint",
     "prepare": "husky",
+    "cron": "node scripts/cron-runner.mjs",
     "db": "drizzle-kit",
     "deps": "pnpm dlx taze@latest -Ilw",
     "deps:major": "pnpm dlx taze@latest major -Ilw",

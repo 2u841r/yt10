@@ -312,6 +312,7 @@ export async function getRecentCommentsWithReplies(
     commentId: string;
     videoId: string | null;
     author: string;
+    authorAvatarUrl: string | null;
     text: string;
     publishedAt: string;
   }> = [];
@@ -333,6 +334,7 @@ export async function getRecentCommentsWithReplies(
             id: string;
             snippet?: {
               authorDisplayName?: string;
+              authorProfileImageUrl?: string;
               textDisplay?: string;
               publishedAt?: string;
             };
@@ -377,6 +379,7 @@ export async function getRecentCommentsWithReplies(
         commentId,
         videoId: item.snippet?.videoId ?? null,
         author: item.snippet?.topLevelComment?.snippet?.authorDisplayName ?? "Unknown author",
+        authorAvatarUrl: item.snippet?.topLevelComment?.snippet?.authorProfileImageUrl ?? null,
         text,
         publishedAt,
       });
@@ -420,6 +423,8 @@ export async function getRecentCommentsWithReplies(
           commentId: comment.commentId,
           videoId: comment.videoId,
           commentText: comment.text,
+          authorName: comment.author,
+          authorAvatarUrl: comment.authorAvatarUrl ?? undefined,
         }));
 
       return {
@@ -446,6 +451,8 @@ async function createYoutubeCommentDraft(args: {
   commentId: string;
   videoId: string | null;
   commentText: string;
+  authorName?: string;
+  authorAvatarUrl?: string;
   customComment?: string;
   correctionInstruction?: string;
 }) {
@@ -463,6 +470,8 @@ async function createYoutubeCommentDraft(args: {
       commentId: args.commentId,
       videoId: args.videoId,
       commentText: args.commentText,
+      authorName: args.authorName || null,
+      authorAvatarUrl: args.authorAvatarUrl || null,
       optionA: replyOptions[0],
       optionB: replyOptions[1],
       customComment: args.customComment?.trim() || null,

@@ -16,6 +16,7 @@ import { Route as GuestSignupRouteImport } from './routes/_guest/signup'
 import { Route as GuestLoginRouteImport } from './routes/_guest/login'
 import { Route as AuthAppRouteRouteImport } from './routes/_auth/app/route'
 import { Route as AuthAppIndexRouteImport } from './routes/_auth/app/index'
+import { Route as ApiCronSplatRouteImport } from './routes/api/cron/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const GuestRouteRoute = GuestRouteRouteImport.update({
@@ -51,6 +52,11 @@ const AuthAppIndexRoute = AuthAppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthAppRouteRoute,
 } as any)
+const ApiCronSplatRoute = ApiCronSplatRouteImport.update({
+  id: '/api/cron/$',
+  path: '/api/cron/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof GuestLoginRoute
   '/signup': typeof GuestSignupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/$': typeof ApiCronSplatRoute
   '/app/': typeof AuthAppIndexRoute
 }
 export interface FileRoutesByTo {
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/login': typeof GuestLoginRoute
   '/signup': typeof GuestSignupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/$': typeof ApiCronSplatRoute
   '/app': typeof AuthAppIndexRoute
 }
 export interface FileRoutesById {
@@ -81,13 +89,21 @@ export interface FileRoutesById {
   '/_guest/login': typeof GuestLoginRoute
   '/_guest/signup': typeof GuestSignupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/$': typeof ApiCronSplatRoute
   '/_auth/app/': typeof AuthAppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/login' | '/signup' | '/api/auth/$' | '/app/'
+  fullPaths:
+    | '/'
+    | '/app'
+    | '/login'
+    | '/signup'
+    | '/api/auth/$'
+    | '/api/cron/$'
+    | '/app/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/signup' | '/api/auth/$' | '/app'
+  to: '/' | '/login' | '/signup' | '/api/auth/$' | '/api/cron/$' | '/app'
   id:
     | '__root__'
     | '/'
@@ -97,6 +113,7 @@ export interface FileRouteTypes {
     | '/_guest/login'
     | '/_guest/signup'
     | '/api/auth/$'
+    | '/api/cron/$'
     | '/_auth/app/'
   fileRoutesById: FileRoutesById
 }
@@ -105,6 +122,7 @@ export interface RootRouteChildren {
   AuthRouteRoute: typeof AuthRouteRouteWithChildren
   GuestRouteRoute: typeof GuestRouteRouteWithChildren
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiCronSplatRoute: typeof ApiCronSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -157,6 +175,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/'
       preLoaderRoute: typeof AuthAppIndexRouteImport
       parentRoute: typeof AuthAppRouteRoute
+    }
+    '/api/cron/$': {
+      id: '/api/cron/$'
+      path: '/api/cron/$'
+      fullPath: '/api/cron/$'
+      preLoaderRoute: typeof ApiCronSplatRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -211,6 +236,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRouteRoute: AuthRouteRouteWithChildren,
   GuestRouteRoute: GuestRouteRouteWithChildren,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiCronSplatRoute: ApiCronSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
