@@ -7,11 +7,14 @@ export const Route = createFileRoute("/api/cron/$")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const secret = request.headers.get("x-cron-secret");
-
         if (!env.CRON_SECRET) {
           return Response.json({ error: "CRON_SECRET not configured on server" }, { status: 500 });
         }
+
+        const xSecret = request.headers.get("x-cron-secret");
+        const authHeader = request.headers.get("authorization");
+        const bearerSecret = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+        const secret = xSecret ?? bearerSecret;
 
         if (!secret || secret !== env.CRON_SECRET) {
           return Response.json({ error: "Unauthorized" }, { status: 401 });
